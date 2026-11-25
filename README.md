@@ -293,3 +293,4 @@ ruff format --check src tests
 - [Техническое задание](docs/TECHNICAL_SPEC.md)
 - [План и текущий статус](docs/IMPLEMENTATION_PLAN.md)
 - [Выполненные проверки и ограничения](docs/VALIDATION.md)
+This repository contains baselines and pipelines, which may form as basis for research projects in recommendation systems.
