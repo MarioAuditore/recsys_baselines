@@ -1,0 +1,11 @@
+name: sasrec
+embedding_dim: 64
+heads: 2
+blocks: 2
+dropout: 0.2
+loss:
+  name: ce
+  n_buckets: 8
+  bucket_size_x: 64
+  bucket_size_y: 256
+  mix_x: false

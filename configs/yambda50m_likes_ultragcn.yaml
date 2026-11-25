@@ -1,0 +1,53 @@
+# @package _global_
+defaults:
+- base
+- _self_
+- execution
+- override /dataset: yambda50m_likes
+- override /model: ultragcn
+max_seq_length: 100
+training:
+  batch_size: 1024
+
+tuning:
+  space:
+    model:
+      embedding_dim: {
+        type: categorical,
+        choices: [32, 64]
+      }
+      neighbors: {
+        type: categorical,
+        choices: [5, 10]
+      }
+      loss:
+        negative_weight: {
+          type: float,
+          low: 1.0,
+          high: 20.0,
+          log: true
+        }
+        item_weight: {
+          type: float,
+          low: 0.0001,
+          high: 0.01,
+          log: true
+        }
+        regularization: {
+          type: float,
+          low: 0.000001,
+          high: 0.01,
+          log: true
+        }
+      sampling:
+        count: {
+          type: categorical,
+          choices: [5, 10, 20]
+        }
+    training:
+      learning_rate: {
+        type: float,
+        low: 0.0001,
+        high: 0.01,
+        log: true
+      }

@@ -1,0 +1,5 @@
+name: itemknn
+loss: null
+neighbors: 100
+block_size: 128
+shrinkage: 0.0

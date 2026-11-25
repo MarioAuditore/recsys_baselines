@@ -1,0 +1,7 @@
+sampler: tpe
+trials: 20
+timeout: null
+study_name: null
+storage: sqlite:///outputs/optuna.db
+pruning: true
+warmup_epochs: 3

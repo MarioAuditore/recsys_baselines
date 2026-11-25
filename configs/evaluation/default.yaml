@@ -1,0 +1,9 @@
+protocol: next_item
+ks:
+- 10
+- 20
+- 50
+buckets: 3
+user_batch_size: 128
+item_block_size: 4096
+selection_metric: ndcg@20

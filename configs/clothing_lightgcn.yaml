@@ -1,0 +1,41 @@
+# @package _global_
+defaults:
+- base
+- _self_
+- execution
+- override /dataset: amazon_clothing
+- override /model: lightgcn
+training:
+  batch_size: 1024
+
+tuning:
+  space:
+    model:
+      embedding_dim: {
+        type: categorical,
+        choices: [32, 64, 128]
+      }
+      layers: {
+        type: int,
+        low: 1,
+        high: 4
+      }
+      loss:
+        regularization: {
+          type: float,
+          low: 0.000001,
+          high: 0.01,
+          log: true
+        }
+      sampling:
+        count: {
+          type: categorical,
+          choices: [1, 2, 4]
+        }
+    training:
+      learning_rate: {
+        type: float,
+        low: 0.0001,
+        high: 0.01,
+        log: true
+      }

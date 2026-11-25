@@ -1,0 +1,10 @@
+# @package _global_
+runtime:
+  device: cpu
+  threads: 2
+training:
+  epochs: 2
+  batch_size: 8
+  max_batches: 3
+  patience: null
+max_seq_length: 16

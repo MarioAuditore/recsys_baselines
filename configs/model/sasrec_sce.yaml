@@ -1,0 +1,5 @@
+defaults:
+- sasrec
+- _self_
+loss:
+  name: sce

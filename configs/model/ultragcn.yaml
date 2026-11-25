@@ -1,0 +1,19 @@
+name: ultragcn
+embedding_dim: 64
+init_std: 0.0001
+neighbors: 10
+block_size: 128
+include_self: true
+loss:
+  name: ultragcn
+  w1: 1.0
+  w2: 1.0
+  w3: 1.0
+  w4: 1.0
+  negative_weight: 10.0
+  item_weight: 0.001
+  regularization: 0.0001
+sampling:
+  count: 10
+  distribution: uniform
+  alpha: 0.75

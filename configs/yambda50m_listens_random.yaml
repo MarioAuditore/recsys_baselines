@@ -1,0 +1,13 @@
+# @package _global_
+defaults:
+- base
+- _self_
+- execution
+- override /dataset: yambda50m_listens
+- override /model: random
+max_seq_length: 100
+training:
+  batch_size: 1024
+
+tuning:
+  space: {}

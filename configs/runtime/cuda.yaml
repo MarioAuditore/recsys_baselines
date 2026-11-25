@@ -1,0 +1,2 @@
+device: cuda
+threads: 4

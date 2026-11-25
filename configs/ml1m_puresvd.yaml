@@ -1,0 +1,18 @@
+# @package _global_
+defaults:
+- base
+- _self_
+- execution
+- override /dataset: ml1m
+- override /model: puresvd
+max_seq_length: 100
+training:
+  batch_size: 1024
+
+tuning:
+  space:
+    model:
+      rank: {
+        type: categorical,
+        choices: [16, 32, 64, 128]
+      }

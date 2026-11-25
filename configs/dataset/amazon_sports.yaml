@@ -1,0 +1,8 @@
+name: amazon_sports
+source: amazon
+path: data/global_temporal_split/${dataset.name}
+input_path: data/raw/${dataset.name}/Sports_and_Outdoors.jsonl.gz
+url: null
+time_origin: unix_utc
+category: Sports_and_Outdoors
+timestamp_scale: 1

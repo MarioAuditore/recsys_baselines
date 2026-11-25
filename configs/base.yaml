@@ -1,0 +1,62 @@
+# @package _global_
+defaults:
+- _self_
+- dataset: ml1m
+- model: sasrec
+- evaluation: default
+- override hydra/job_logging: disabled
+seed: 42
+fit_split: train
+target_split: all
+max_seq_length: 50
+min_history: 2
+checkpoint: null
+split: test
+run_name: ${model.name}_${dataset.name}_seed${seed}
+output:
+  dir: outputs/${run_name}
+  path: results/${dataset.name}/${run_name}_${split}.json
+  overwrite: false
+preparation:
+  min_rating: 4
+  listen_threshold: 50
+  listen_operator: gt
+  ratios:
+  - 0.8
+  - 0.1
+  - 0.1
+  boundaries: null
+  min_user_events: 1
+  min_item_events: 1
+  iterative_filter: false
+  sample_users: null
+  sample_seed: 42
+  memory_limit: 2GB
+training:
+  epochs: 100
+  batch_size: 128
+  learning_rate: 0.001
+  optimizer: adam
+  weight_decay: 0.0
+  gradient_clip: 5.0
+  amp: false
+  validate: null
+  patience: 10
+  max_batches: null
+  scheduler:
+    step_size: 1000000
+    gamma: 1.0
+tuning:
+  space: {}
+reporting:
+  input_dir: results
+  output_dir: reports
+  confidence: 0.95
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  job:
+    chdir: false
+  job_logging:
+    disable_existing_loggers: false

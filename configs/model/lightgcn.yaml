@@ -1,0 +1,11 @@
+name: lightgcn
+embedding_dim: 64
+layers: 3
+init_std: 0.1
+loss:
+  name: bpr
+  regularization: 0.0001
+sampling:
+  count: 1
+  distribution: uniform
+  alpha: 0.75

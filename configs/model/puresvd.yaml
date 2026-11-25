@@ -1,0 +1,4 @@
+name: puresvd
+loss: null
+rank: 64
+tolerance: 0.0
