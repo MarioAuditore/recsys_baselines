@@ -1,0 +1,14 @@
+# @package _global_
+defaults:
+- /base
+- _self_
+- /model: sasrec
+- /execution
+dataset:
+  name: custom
+  source: csv
+  path: data/global_temporal_split/${dataset.name}
+  input_path: data/raw/custom/events.csv
+  timestamp_scale: 1
+  time_origin: unix_utc
+  url: null

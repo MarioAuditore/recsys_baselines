@@ -23,10 +23,13 @@ jobs:
           from recsys.data import PreparedDataset
           from recsys.training import run_training
 
-          config = compose(["tuning.space.model.dropout.high=0.4"], config_name="beauty_sasrec")
+          config = compose(config_name="amazon_beauty.sasrec")
           assert config["model"]["name"] == "sasrec"
           assert config["dataset"]["name"] == "amazon_beauty"
-          assert config["tuning"]["space"]["model"]["dropout"]["high"] == 0.4
+          assert config["training"]["batch_size"] > 0
+          assert not config.get("tuning", {}).get("space")
+          search = compose(["tuning.space.model.dropout.high=0.4"], config_name="amazon_beauty.tuning.sasrec")
+          assert search["tuning"]["space"]["model"]["dropout"]["high"] == 0.4
           assert compose()["dataset"]["name"] == "ml1m"
           PY
-          python -m recsys.tune -cn beauty_sasrec tuning.space.model.dropout.high=0.4 --cfg job --resolve > /dev/null
+          python -m recsys.tune -cn ml1m.tuning.sasrec_grid --cfg job --resolve > /dev/null

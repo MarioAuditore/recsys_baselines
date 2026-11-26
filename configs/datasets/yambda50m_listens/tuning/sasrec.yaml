@@ -1,0 +1,44 @@
+# @package _global_
+defaults:
+- /datasets/yambda50m_listens/sasrec
+- /optuna: tpe
+- _self_
+tuning:
+  space:
+    model:
+      embedding_dim:
+        type: categorical
+        choices:
+        - 32
+        - 64
+      heads:
+        type: categorical
+        choices:
+        - 1
+        - 2
+        - 4
+      blocks:
+        type: int
+        low: 1
+        high: 3
+      dropout:
+        type: float
+        low: 0.0
+        high: 0.5
+    training:
+      batch_size:
+        type: categorical
+        choices:
+        - 4
+        - 8
+      learning_rate:
+        type: float
+        low: 0.0001
+        high: 0.01
+        log: true
+      weight_decay:
+        type: categorical
+        choices:
+        - 0.0
+        - 1.0e-06
+        - 0.0001

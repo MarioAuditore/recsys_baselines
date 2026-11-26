@@ -54,10 +54,12 @@ def tune(config):
         or config["training"]["validate"] is False
     ):
         raise ValueError("Tuning requires train-only fit and independent validation")
-    options = config["tuning"]
-    space = options["space"]
+    options = config.get("tuning", {})
+    space = options.get("space")
     if not space:
-        raise ValueError("Empty tuning.space; select an experiment with tunable parameters")
+        raise ValueError(
+            "Empty tuning.space; select a search preset such as -cn ml1m.tuning.sasrec_grid"
+        )
     if not isinstance(space, dict):
         raise ValueError("tuning.space must be a mapping")
     search = {}

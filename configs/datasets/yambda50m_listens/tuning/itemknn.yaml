@@ -1,0 +1,20 @@
+# @package _global_
+defaults:
+- /datasets/yambda50m_listens/itemknn
+- /optuna: tpe
+- _self_
+tuning:
+  space:
+    model:
+      neighbors:
+        type: categorical
+        choices:
+        - 25
+        - 50
+        - 100
+      shrinkage:
+        type: categorical
+        choices:
+        - 0.0
+        - 10.0
+        - 100.0

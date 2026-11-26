@@ -1,14 +1,13 @@
 """Start a new run from trained weights with python -m recsys.finetune."""
 
-import hydra
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 
 from recsys.checkpoint_config import load_checkpoint_config
-from recsys.config import config_directory
+from recsys.config import hydra_cli
 
 
-@hydra.main(config_path=config_directory(), config_name="config", version_base="1.3")
+@hydra_cli
 def main(config: DictConfig) -> None:
     from recsys.training import run_training
 

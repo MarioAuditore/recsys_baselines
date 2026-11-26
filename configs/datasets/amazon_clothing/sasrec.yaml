@@ -1,0 +1,23 @@
+# @package _global_
+defaults:
+- dataset
+- _self_
+- /execution
+max_seq_length: 50
+model:
+  name: sasrec
+  embedding_dim: 64
+  heads: 2
+  blocks: 2
+  dropout: 0.2
+  loss:
+    name: ce
+    n_buckets: 8
+    bucket_size_x: 64
+    bucket_size_y: 256
+    mix_x: false
+training:
+  epochs: 100
+  batch_size: 2
+  learning_rate: 0.001
+  weight_decay: 0.0

@@ -1,0 +1,12 @@
+# @package _global_
+defaults:
+- /base
+- _self_
+dataset:
+  name: ml1m
+  source: ml1m
+  path: data/global_temporal_split/${dataset.name}
+  input_path: data/raw/${dataset.name}/ml-1m.zip
+  url: null
+  time_origin: unix_utc
+  timestamp_scale: 1000

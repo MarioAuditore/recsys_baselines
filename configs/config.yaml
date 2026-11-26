@@ -1,3 +1,5 @@
 defaults:
-- base
+- datasets/ml1m/dataset
+- model: sasrec
+- optuna: tpe
 - execution

@@ -1,0 +1,15 @@
+# @package _global_
+defaults:
+- /datasets/amazon_clothing/puresvd
+- /optuna: tpe
+- _self_
+tuning:
+  space:
+    model:
+      rank:
+        type: categorical
+        choices:
+        - 16
+        - 32
+        - 64
+        - 128

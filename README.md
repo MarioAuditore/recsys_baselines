@@ -1,21 +1,27 @@
-# recsys_baselines
+# Recommender System Baselines
 
-This repository contains baselines and pipelines, which may form as basis for research projects in recommendation systems.
+`recsys_baselines` provides a shared pipeline for next-item recommendation experiments. It prepares chronological data splits, fits models on the same interaction histories, ranks the active item catalog, and summarizes results across seeds. The experiment presets provide starting hyperparameters for each dataset and model.
 
-Небольшой исследовательский репозиторий для **next-item recommendation**: SASRec (CE/SCE), LightGCN, UltraGCN, Random, MostPopular, ItemKNN и PureSVD. Общие CSV, история взаимодействий, evaluator и результаты позволяют сравнивать модели без отдельных пайплайнов под каждый алгоритм.
+| Model | Training preset suffix | Method |
+| --- | --- | --- |
+| SASRec | `sasrec` or `sasrec_sce` | Causal self-attention with full-catalog cross-entropy (CE) or Scalable Cross-Entropy (SCE) |
+| LightGCN | `lightgcn` | Graph propagation with Bayesian Personalized Ranking (BPR) |
+| UltraGCN | `ultragcn` | Graph-based recommendation with user–item and item–item constraints |
+| Random | `random` | Seeded random item scores |
+| MostPopular | `mostpopular` | Item scores based on interaction counts |
+| ItemKNN | `itemknn` | Item–item nearest neighbors |
+| PureSVD | `puresvd` | Truncated SVD of the user–item matrix |
 
-Реализованы независимые команды `download`, `prepare`, `train`, `resume`, `finetune`, `evaluate`, `tune`, `report`. Первые проверки выполнены на CPU и MovieLens-1M. Конфиги — стартовые, **не результаты полноценного тюнинга**. См. [проверки и ограничения](docs/VALIDATION.md).
+## Installation
 
-## Установка
-
-Python 3.11 или новее. Из корня репозитория:
+Use Python 3.11 or newer. Run the examples from the repository root. For an installation using the committed lockfile, use `uv`.
 
 ```bash
-uv sync --extra dev
+uv sync --locked --extra dev
 source .venv/bin/activate
 ```
 
-`uv.lock` фиксирует зависимости. Альтернатива без uv:
+Alternatively, create a virtual environment and install the project with pip.
 
 ```bash
 python3 -m venv .venv
@@ -23,274 +29,260 @@ source .venv/bin/activate
 python -m pip install -e '.[dev]'
 ```
 
-Для CUDA нужна совместимая с GPU версия PyTorch. `runtime=cuda` выбирает устройство. На Apple Silicon `runtime=mps` проверен для SASRec (CE/SCE), LightGCN и UltraGCN на Apple M1 Pro с PyTorch 2.15. LightGCN требует поддержки разреженного матричного умножения и обратного прохода на MPS в установленной версии PyTorch. Для быстрой проверки на CPU используйте `runtime=cpu_smoke`.
+The `dev` extra installs pytest and Ruff. For the experiment CLI alone, omit `--extra dev` from the uv command or use `python -m pip install -e .`.
 
-## Первый запуск: ML-1M
+| Runtime | Use |
+| --- | --- |
+| `runtime=cpu` | Default runtime for training and evaluation |
+| `runtime=cpu_smoke` | Short CPU runs with two epochs, up to three batches per epoch, batch size 8, and a maximum history of 16 interactions |
+| `runtime=mps` | Apple Silicon GPU. SASRec CE/SCE, LightGCN, and UltraGCN were smoke-tested on an M1 Pro with PyTorch 2.15. LightGCN needs sparse matrix multiplication and backward support on MPS. |
+| `runtime=cuda` | NVIDIA GPU with a compatible PyTorch build and driver. Set `training.amp=true` to enable CUDA mixed precision. |
 
-Команды выполняются отдельно. Никакая из них не запускает автоматически следующий этап.
+Random, MostPopular, ItemKNN, and PureSVD fit and score on CPU. Their evaluation records identify the effective device. Reports are also generated on CPU.
+
+## Quickstart on MovieLens 1M
+
+This run fits SASRec on a deterministic sample of 512 users, evaluates its best checkpoint on validation and test, and generates a report. The short run is suitable for checking installation and the pipeline.
 
 ```bash
-python -m recsys.download dataset=ml1m
+python -m recsys.download -cn ml1m.dataset
 
-python -m recsys.prepare dataset=ml1m \
-  dataset.path=data/global_temporal_split/ml1m_smoke \
+python -m recsys.prepare -cn ml1m.dataset \
+  dataset.path=data/global_temporal_split/ml1m_quickstart \
   preparation.sample_users=512
 
-python -m recsys.train -cn ml1m_sasrec runtime=cpu_smoke \
-  dataset.path=data/global_temporal_split/ml1m_smoke \
-  run_name=sasrec_ml1m_quickstart_seed42
+python -m recsys.train -cn ml1m.sasrec runtime=cpu_smoke \
+  dataset.path=data/global_temporal_split/ml1m_quickstart \
+  run_name=ml1m_sasrec_quickstart_seed42
 
 python -m recsys.evaluate \
-  checkpoint=outputs/sasrec_ml1m_quickstart_seed42/best.pt \
-  split=val output.path=results/ml1m_smoke/sasrec_val_seed42.json
+  checkpoint=outputs/ml1m_sasrec_quickstart_seed42/best.pt \
+  split=val output.path=results/ml1m_quickstart/sasrec_val_seed42.json
 
 python -m recsys.evaluate \
-  checkpoint=outputs/sasrec_ml1m_quickstart_seed42/best.pt \
-  split=test output.path=results/ml1m_smoke/sasrec_test_seed42.json
+  checkpoint=outputs/ml1m_sasrec_quickstart_seed42/best.pt \
+  split=test output.path=results/ml1m_quickstart/sasrec_test_seed42.json
 
-python -m recsys.report reporting.input_dir=results/ml1m_smoke \
-  reporting.output_dir=reports/ml1m_smoke
+python -m recsys.report \
+  reporting.input_dir=results/ml1m_quickstart \
+  reporting.output_dir=reports/ml1m_quickstart
 ```
 
-`cpu_smoke` — две эпохи, максимум три batch на эпоху, batch size 8, история 16 событий. Такой запуск проверяет код, а не качество модели. `sample_users=512` выбирает пользователей детерминированно по хешу исходного ID; это отдельный срез, явно записанный в metadata.
+The report starts at `reports/ml1m_quickstart/metrics.md`. If you already have `ml-1m.zip`, start at `prepare` and set `dataset.input_path=/absolute/path/to/ml-1m.zip` on that command. The default archive path is `data/raw/ml1m/ml-1m.zip`.
 
-Для полного ML-1M подготовить данные без `preparation.sample_users` в отдельный каталог и выбрать обычный `runtime=cpu` или `runtime=cuda`.
+## Datasets and preparation
 
-## Данные
+| Dataset prefix | Source |
+| --- | --- |
+| `ml1m` | MovieLens 1M |
+| `amazon_beauty` | Amazon Reviews 2023 Beauty and Personal Care |
+| `amazon_clothing` | Amazon Reviews 2023 Clothing, Shoes and Jewelry |
+| `amazon_sports` | Amazon Reviews 2023 Sports and Outdoors |
+| `yambda50m_listens` | Yambda 50M listens |
+| `yambda50m_likes` | Yambda 50M likes |
 
-```text
-data/
-  raw/<dataset>/...
-  global_temporal_split/<dataset>/
-    train.csv
-    val.csv
-    test.csv
-    metadata.json
-    user_mapping.csv
-    item_mapping.csv
-```
-
-Формат событий строго:
-
-```csv
-timestamp,item_id,user_id
-978300760000,0,0
-978302109000,3,0
-```
-
-- ID от нуля, один mapping на все части; padding SASRec равен `n_items` и в CSV не записывается.
-- Все повторы сохраняются, включая одинаковые строки. Дополнительной дедупликации нет.
-- Время — целое число миллисекунд. MovieLens/Amazon используют Unix time, Yambda — относительное время источника. Исходная точность не повышается.
-- CSV отсортирован по пользователю и времени, для ties сохраняется исходный порядок.
-- `metadata.json` хранит пороги, границы, источник, checksum, размеры частей, исключения, длины train-историй и счётчики повторов.
-- Split CSV содержат полные временные части. Последние L событий выбираются общим слоем при запуске модели. SASRec получает из них до L−1 обучающих переходов; графы и остальные модели используют тот же набор событий.
-- Популярность считается по событиям этого набора с учётом повторов. Бинарный граф/матрица объединяет события в рёбра уже на уровне представления модели.
-
-Доступные `dataset`:
-
-| Имя | Источник |
-|---|---|
-| `ml1m` | MovieLens-1M |
-| `amazon_beauty` | Amazon Reviews 2023 / Beauty_and_Personal_Care |
-| `amazon_clothing` | Amazon Reviews 2023 / Clothing_Shoes_and_Jewelry |
-| `amazon_sports` | Amazon Reviews 2023 / Sports_and_Outdoors |
-| `yambda50m_listens` | Yambda 50M / listens |
-| `yambda50m_likes` | Yambda 50M / likes |
-| `csv` | Собственный источник с `timestamp,item_id,user_id` и необязательными `rating`, `played_ratio_pct` |
+Select `<dataset>.dataset` for `download` and `prepare`. `download` retrieves an upstream source file and records its checksum. `prepare` reads the local source, applies signal and activity filters, and writes `train.csv`, `val.csv`, `test.csv`, `metadata.json`, and user and item mappings under `dataset.path`. For full MovieLens 1M, use the default path and omit user sampling. If the full split already exists, proceed directly to training. Use a new `dataset.path` to try a different preparation recipe.
 
 ```bash
-python -m recsys.download dataset=amazon_beauty
-python -m recsys.prepare dataset=amazon_beauty preparation.min_rating=4
-
-python -m recsys.download dataset=yambda50m_listens
-python -m recsys.prepare dataset=yambda50m_listens \
-  preparation.listen_threshold=50 preparation.listen_operator=gt
+python -m recsys.prepare -cn ml1m.dataset
 ```
 
-Amazon скачивается как raw JSONL.gz, используется `parent_asin`; для Yambda исходный Parquet только читается адаптером, итоговые файлы — CSV. Смена порога не требует нового скачивания. Для другого размера Yambda переопределить `dataset.size`, `dataset.name` и путь исходника/результата, например имя `yambda500m_listens`, чтобы не смешивать разные варианты.
+By default, rated datasets keep ratings of at least 4 and Yambda listens keep events with more than 50% played. Adjust `preparation.min_rating` or `preparation.listen_threshold`, or set a threshold to `null` to disable it. Use `preparation.listen_operator=ge` for an inclusive listen threshold. Existing prepared splits can be reused by training and evaluation.
 
-По умолчанию рейтинги `>=4`, прослушивания `>50%`. Можно отключить порог значением `null`. `listen_operator=ge` означает включённую границу. В лайках реконструкция состояния через unlike не выполняется. Пороги активности задаются `preparation.min_user_events` и `preparation.min_item_events`, итеративная фильтрация включается явно через `preparation.iterative_filter=true`.
-
-Собственный CSV:
+For a custom CSV, use the [generic dataset preset](configs/datasets/dataset.yaml). The CSV requires `timestamp,item_id,user_id` and can include `rating`. Set `dataset.timestamp_scale=1000` for seconds or `1` for milliseconds.
 
 ```bash
-python -m recsys.prepare dataset=csv dataset.name=my_dataset \
-  dataset.input_path=/absolute/path/events.csv \
+python -m recsys.prepare -cn datasets.dataset dataset.name=my_dataset \
+  dataset.input_path=/absolute/path/to/events.csv \
   dataset.timestamp_scale=1000 preparation.min_rating=null
+
+python -m recsys.train -cn datasets.dataset dataset.name=my_dataset model=sasrec
 ```
 
-`timestamp_scale` — множитель перевода исходного целого времени в миллисекунды. Для уже готовых миллисекунд он равен 1.
+The default **global temporal split** uses 80/10/10 event quantiles after filtering and keeps equal timestamps in the same split. Set `preparation.boundaries` to two explicit timestamps in milliseconds to fix the cutoffs. The mappings come from the training split. Validation and test events with unknown users or items are excluded and counted in metadata. The prepared CSVs preserve repeated events and store integer millisecond timestamps and zero-based IDs.
 
-## Временной протокол
+## Training and checkpoint selection
 
-По умолчанию GTS 80/10/10 по глобальным квантилям событий **после порога сигнала**. Равные timestamps не разбиваются. Для фиксированного эксперимента задайте две границы в миллисекундах:
+Select a dataset and model with `-cn <dataset>.<model>`. For example, `ml1m.lightgcn` loads `configs/datasets/ml1m/lightgcn.yaml`, and `amazon_beauty.sasrec` loads `configs/datasets/amazon_beauty/sasrec.yaml`. With no preset, the CLI loads [the default Hydra config](configs/config.yaml).
 
 ```bash
-python -m recsys.prepare dataset=ml1m \
-  'preparation.boundaries=[975000000000,978000000000]'
+python -m recsys.train -cn ml1m.sasrec
+
+python -m recsys.train -cn ml1m.sasrec_sce runtime=cpu \
+  seed=42 run_name=sasrec_sce_ml1m_seed42
+
+python -m recsys.train -cn ml1m.lightgcn runtime=cpu seed=42
 ```
 
-Mapping строится по train. Неизвестные train пользователи и объекты исключаются из val/test, счётчики сохраняются. Минимальная эффективная train-история для общего сравнения — два события. После ограничения L объекты/пользователи могут стать неактивными: они также исключаются из кандидатов и оценки, без перенумерации внешнего mapping.
+`--cfg job --resolve` prints the fully resolved config before launching a run. Add `--package training` to print only the active training settings.
 
-Основной `evaluation.protocol=next_item`:
+```bash
+python -m recsys.train -cn ml1m.sasrec runtime=mps --cfg job --resolve
+```
 
-- один запрос на пользователя в выбранном val/test-окне;
-- цель — первое допустимое положительное событие в этом окне;
-- повторные объекты разрешены, seen-каталог не маскируется;
-- история фиксирована выбранной fit-частью; val не добавляется к test-контексту автоматически;
-- при train-only это прогноз первого события в test-окне по train-истории, с пропущенным промежуточным val-окном;
-- после отдельного train на train+val используется история объединённой части;
-- точный top-K по всему активному каталогу, scores считаются блоками; ties разрешаются по item ID.
+### Where to edit hyperparameters
 
-`evaluation.protocol=next_new_item` — отдельная задача: повторные цели исключаются, ранее встречавшиеся объекты маскируются по всей доступной fit-истории, включая события за пределами L. Результаты разных протоколов не объединяются.
-
-## Конфигурации моделей
+The dataset folders are grouped under [`configs/datasets/`](configs/datasets/). Here are the MovieLens 1M source, training, and SASRec search presets.
 
 ```text
-configs/
-  beauty_sasrec.yaml        # конфиг пары датасет × модель
-  ml1m_lightgcn.yaml
-  base.yaml                 # общие параметры, датасет, модель, оценка
-  execution.yaml            # профили среды запуска и Optuna
-  config.yaml               # конфиг по умолчанию
-  dataset/
-  model/
-  evaluation/
-  runtime/
+configs/datasets/ml1m/
+  dataset.yaml             # Source and prepared dataset paths
+  sasrec.yaml              # Fixed model and training settings
+  sasrec_sce.yaml          # Fixed settings for the SCE variant
   tuning/
+    sasrec.yaml            # TPE search space
+    sasrec_grid.yaml       # Finite grid search space
 ```
 
-Файл `configs/<dataset>_<model>.yaml` наследует общие настройки, выбирает датасет и модель и задаёт переопределения пары вместе с её пространством поиска. Выберите файл через `-cn` или `--config-name`, указав имя без `.yaml`. Без этого аргумента загружается `configs/config.yaml`. Префиксы `beauty`, `clothing` и `sports` соответствуют датасетам `amazon_beauty`, `amazon_clothing` и `amazon_sports`.
-
-Полностью разрешённый конфиг сохраняется в каталоге запуска. Его можно посмотреть до обучения.
+Edit `model` and `training` in the [fixed SASRec preset](configs/datasets/ml1m/sasrec.yaml) to save the values you want for future runs. For an individual run, pass `key=value` overrides to the CLI. A CUDA training run can set the batch size to 1024 or higher, subject to available memory. `runtime=cpu_smoke` sets a smaller batch size for local checks.
 
 ```bash
-python -m recsys.train -cn beauty_sasrec training.batch_size=4 --cfg job --resolve
+python -m recsys.train -cn ml1m.sasrec runtime=cuda \
+  training.batch_size=1024 run_name=sasrec_ml1m_cuda_bs1024_seed42
 ```
 
-Параметры можно переопределить через `ключ=значение` после имени конфига.
+### Training budget and outputs
+
+The training runner builds an effective history from the last `max_seq_length` fit interactions per user and keeps users with at least `min_history` interactions. All models use this history to define the active catalog. For a full training run, use a regular runtime and leave `training.max_batches=null` so each epoch can use all batches. The base config allows up to 100 epochs. Analytic baselines fit once.
+
+With the default `fit_split=train` and `training.validate=null`, training evaluates validation after each epoch. It selects the checkpoint with the highest `evaluation.selection_metric`, which defaults to `ndcg@20`. The default patience is 10 epochs without improvement. The validation journal records the loss, optimizer step count, metrics, and query counts for each epoch.
+
+| File in `output.dir` | Contents |
+| --- | --- |
+| `config.yaml` | Resolved configuration |
+| `best.pt` | Checkpoint selected by validation, or the latest epoch when validation is disabled |
+| `last.pt` | Latest checkpoint, including state for resuming neural training |
+| `validation.jsonl` | Per-epoch journal |
+| `summary.json` | Selected epoch, validation score, and checkpoint paths |
+
+The default run directory is `outputs/<run_name>`. The default name includes the model, dataset, and seed. Use a distinct `run_name` or `output.dir` for changed settings. Existing checkpoints are protected unless `output.overwrite=true` is set. Load checkpoints only from sources you trust.
+
+### Resume, fine-tune, or refit
+
+Resume a neural run from its latest checkpoint. `training.epochs` is the new total epoch budget. Resume uses the original directory, data, training settings, and runtime.
 
 ```bash
-python -m recsys.train -cn ml1m_lightgcn runtime=cuda seed=42
-python -m recsys.train -cn ml1m_ultragcn runtime=cuda seed=42
-python -m recsys.train -cn ml1m_puresvd seed=42
-python -m recsys.train -cn ml1m_itemknn model.neighbors=50
-
-python -m recsys.train -cn ml1m_sasrec runtime=cuda \
-  model.loss.name=sce model.loss.n_buckets=8 \
-  model.loss.bucket_size_x=64 model.loss.bucket_size_y=256 \
-  run_name=sasrec_sce_ml1m_seed42
+python -m recsys.resume checkpoint=outputs/sasrec_ml1m_seed42/last.pt \
+  training.epochs=150
 ```
 
-SASRec: `ce|sce`; LightGCN: `bpr`; UltraGCN: `ultragcn` с собственными коэффициентами. У аналитических моделей `loss=null`. Случайные отрицательные объекты графовых моделей берутся из активного каталога и исключают известные положительные пары. Настройки `model.sampling`: число negatives, `uniform|popularity`, степень популярности. Пользователи, заполнившие весь активный каталог, не дают pairwise train-примеров.
-
-Полная CE может требовать много памяти: batch size, длина истории и каталог перемножаются. Для больших датасетов стартовые batch size уменьшены, но ещё не профилировались на целевой GPU. SCE использует алгоритм проекционных групп AIRI; это не случайный sampled softmax. [Источники и лицензии](THIRD_PARTY.md).
-
-## Отдельные режимы
-
-**Продолжение того же запуска:** восстанавливаются optimizer, scheduler, RNG и счётчики. `training.epochs` — новое общее число эпох.
+Fine-tuning starts a new neural run from saved weights with a new optimizer. By default it uses train and validation events for history and trains on validation targets. The model configuration and item/user mappings must match the checkpoint.
 
 ```bash
-python -m recsys.resume checkpoint=outputs/my_run/last.pt training.epochs=150
+python -m recsys.finetune checkpoint=outputs/sasrec_ml1m_seed42/best.pt \
+  run_name=sasrec_ml1m_finetune_seed42 \
+  training.learning_rate=0.0001 training.epochs=10
 ```
 
-Resume требует `last.pt`, прежние данные, модель, протокол и runtime; записи продолжаются в исходном каталоге. Это предотвращает добавление повторных эпох в журнал при возврате к более раннему `best.pt`. Для новой ветки обучения используйте finetune.
-
-**Дообучение:** новый optimizer и новый каталог. По умолчанию история строится по train+val, а цели loss выбираются только из val; test не используется.
+To fit a fresh model on the combined train and validation split, use `fit_split=train_val` and a fixed epoch budget. Training-time validation is disabled because those events are now part of the fit data. A later evaluation of that same validation split is marked diagnostic. Keep the test split held out.
 
 ```bash
-python -m recsys.finetune checkpoint=outputs/my_run/best.pt \
-  training.learning_rate=0.0001 training.epochs=10 \
-  output.dir=outputs/my_finetune run_name=my_finetune
+python -m recsys.train -cn ml1m.sasrec runtime=cpu fit_split=train_val \
+  training.epochs=30 run_name=sasrec_ml1m_refit_seed42
 ```
 
-Для дообучения по всем событиям fit-части — `target_split=all`. Граф при finetune тоже перестраивается по явно выбранному `fit_split`. Поддерживаются нейросетевые модели; аналитическим бейзлайнам нужен новый `train`. Mapping и конфигурация модели/loss должны совпадать с checkpoint; расширение словаря автоматически не выполняется.
+## Evaluation and metrics
 
-**Обучение с нуля на train+val:** отдельный вызов, без early stopping по уже включённой val.
+`evaluate` reloads a checkpoint and writes one JSON result per split. It inherits the saved model, dataset, history, and runtime settings. You can override the evaluation runtime with `runtime=cuda`, `runtime=mps`, or `runtime=cpu`. The default split is `test` and the default output path is `results/<dataset>/<run_name>_<split>.json`.
 
 ```bash
-python -m recsys.train -cn ml1m_sasrec runtime=cuda \
-  fit_split=train_val training.epochs=30 run_name=sasrec_ml1m_refit_seed42
+python -m recsys.evaluate checkpoint=outputs/sasrec_ml1m_seed42/best.pt split=val
+python -m recsys.evaluate checkpoint=outputs/sasrec_ml1m_seed42/best.pt split=test
 ```
 
-При `training.validate=null` validation включена только для train-only. Явное `training.validate=true` при train_val отклоняется. Mapping подготовленного датасета остаётся прежним; отфильтрованные при prepare холодные события не восстанавливаются.
-
-## Результаты и метрики
-
-`output.dir` определяет каталог обучения, `output.path` — файл самостоятельной оценки. `evaluate` по умолчанию использует `split=test`. Если повторный расчёт даёт тот же результат, команда возвращает сохранённый JSON. Для записи отличающегося результата в существующий файл задайте `output.overwrite=true` или выберите другой `output.path`.
-
-Checkpoints `best.pt` и `last.pt` предназначены соответственно для оценки и resume. Загружайте только свои доверенные checkpoints: они содержат сериализованное состояние Python/PyTorch.
-
-`evaluate` сохраняет в JSON seed, checkpoint и эпоху, stage, fit/eval split, полный конфиг, fingerprints данных, истории и каталога, support, общие и bucket-метрики. При обучении короткая полоса прогресса показывает время, средний loss и validation NDCG на текущей эпохе с точностью до пяти знаков после точки. `validation.jsonl` хранит значения по эпохам с полной точностью. Диагностическая оценка val после обучения на train_val явно помечается.
-
-Метрики при одной цели:
-
-- Recall@K = HitRate@K;
-- NDCG@K = `1/log2(rank+1)` при попадании;
-- Coverage@K — доля активного каталога, встретившаяся в рекомендациях;
-- ARP@K — средняя популярность рекомендаций, сначала по запросу, затем по запросам;
-- buckets head/mid/tail делятся примерно по трети суммы train-взаимодействий, а не по числу объектов.
-
-Bucket Recall/NDCG группируются по **целевому объекту**, позиции сохраняются из общего top-K. Bucket Coverage нормируется на размер группы. Bucket ARP усредняется по показам группы. ExposureShare — доля рекомендательных позиций группы. Отсутствующие значения — `null`, не ноль.
-
-`report` строит CSV/Markdown-таблицы, PNG/SVG-графики и `aggregate.json`. В Markdown общие метрики собраны по протоколу и K с одной строкой на конфигурацию модели. CSV хранит по строке на метрику и конфигурацию. Графики показывают разбивку по бакетам популярности. Повторный запуск в тот же `reporting.output_dir` пересобирает отчёт по текущим результатам и обновляет файлы предыдущего отчёта.
-
-Совпадающие результаты повторных оценок одного checkpoint и seed учитываются один раз. При конфликте между результатами одного seed в одной группе отчёт требует выбрать один результат.
-
-Совместимые независимые запуски объединяются в среднее и 95% t-интервал. В отчёте указаны значения seed, а в CSV `n` — число доступных значений для конкретной метрики. Для одного значения CI отсутствует. Дубли одного seed отклоняются. Разные данные, L, протоколы, fit-части, loss и гиперпараметры не смешиваются. Интервалы отражают вариативность обучения, не bootstrap пользователей.
-
-## Optuna
-
-После подготовки Amazon Beauty запустите подбор для SASRec.
+On CUDA or MPS, neural models encode users and score candidates on the GPU. The evaluator transfers scores back to CPU for exact top-K ranking and metric computation. For larger evaluations, adjust `evaluation.user_batch_size` and `evaluation.item_block_size` to balance scoring throughput and memory use. These settings apply independently of the checkpoint’s training batch size.
 
 ```bash
-python -m recsys.tune -cn beauty_sasrec runtime=cuda \
-  tuning.trials=30 tuning.space.model.dropout.high=0.4
+python -m recsys.evaluate checkpoint=outputs/sasrec_ml1m_cuda_bs1024_seed42/best.pt \
+  runtime=cuda split=test evaluation.user_batch_size=256 evaluation.item_block_size=8192
 ```
 
-Редактируйте `tuning.space.model` и `tuning.space.training` в конфиге пары. Тип `categorical` принимает список `choices`, а `int` и `float` принимают `low` и `high` с опциональным `log: true`. Например, `tuning.space.model.dropout.high=0.4` меняет верхнюю границу через CLI. Диапазоны стартовые. Для Random и MostPopular пространство поиска пустое. Для подбора с `config.yaml` задайте своё пространство поиска. [Конфиг Beauty × SASRec](configs/beauty_sasrec.yaml).
+The default `next_item` protocol selects the first eligible positive event per user in the chosen holdout window and ranks the entire active catalog. Previously seen items remain eligible. History stays fixed to the fit split, so train-only test evaluation skips the intervening validation events. `evaluation.protocol=next_new_item` instead excludes previously seen targets and masks seen items using the full fit history. Check the query counts and exclusions in the JSON before comparing results.
 
-В истории Optuna имена параметров записываются как `model.dropout` и `training.learning_rate`. Сохранённые конфиги с такими плоскими ключами в `tuning.space` поддерживаются.
+Ranking cutoffs come from `evaluation.ks` in the [default evaluation config](configs/evaluation/default.yaml). To override them on the CLI, use an argument such as `'evaluation.ks=[10,20,50]'`. During training and tuning, include the cutoff used by `evaluation.selection_metric`.
 
-По умолчанию используется TPE. Для `tuning.sampler=grid` задайте все параметры как `categorical` с явными списками значений. Профиль `tuning=sasrec_grid` по-прежнему запускает двухпараметрическую решётку для SASRec.
+| Metric | Interpretation |
+| --- | --- |
+| Recall@K | Fraction of queries whose single target appears in the top K, equivalent to hit rate |
+| NDCG@K | Average rank-discounted gain, with zero for a miss and `1/log2(rank+1)` for a hit |
+| Coverage@K | Fraction of the active catalog recommended at least once |
+| ARP@K | Average Recommendation Popularity, measured as mean training interaction count of recommended items per query |
 
-Study сохраняется в SQLite и продолжается при повторном вызове с теми же настройками исследования. Для независимых исследований одного конфига в разных SQLite-базах задавайте разные `output.dir`. При `tuning.storage=null` каждый запуск создаёт новое исследование и хранит его файлы в отдельном каталоге. `tuning.trials` задаёт бюджет текущего вызова. История, протокол оценки, модель и тип loss фиксируются на весь поиск. Optuna выбирает параметры по метрике validation через общий код обучения.
+Popularity breakdowns use head, mid, and tail buckets with approximately equal training interaction mass. Bucket Recall and NDCG group queries by the target item. Bucket coverage, ARP, and exposure share describe the items actually recommended. Undefined metrics appear as `null`.
 
-Таблица `trials.csv` в каталоге исследования содержит состояние, метрику, гиперпараметры, ошибки и путь к сохранённому конфигу каждого trial. Там же лежит сводка `study.json`. Лучший конфиг экспортируется в самостоятельный `best.yaml` для обычного train.
+## Reporting
+
+`report` aggregates the evaluation JSON files under `reporting.input_dir`. Point it at the directory for the experiment you want to compare.
 
 ```bash
-python -m recsys.train --config-path /absolute/path/to/study --config-name best \
-  seed=43 run_name=tuned_seed43 output.dir=outputs/tuned_seed43
+python -m recsys.report reporting.input_dir=results/ml1m \
+  reporting.output_dir=reports/ml1m
 ```
 
-При загрузке полностью разрешённого `best.yaml` меняйте обычные поля, например `runtime.device=cuda`, а не группы defaults. Полноценный тюнинг и финальные seed-запуски выполняются отдельно пользователем.
+The report writes `metrics.md`, `metrics.csv`, `aggregate.json`, and PNG and SVG plots of the popularity breakdowns. It keeps incompatible datasets, histories, evaluation protocols, and splits in separate comparisons. Within a model configuration, compatible runs with different seeds contribute to the mean and, with at least two values, a Student’s t confidence interval. The interval describes variation across seeds and defaults to 95%. Set `reporting.confidence` to change it. Identical evaluations of the same checkpoint and seed count once. Conflicting results for the same seed in a group require selecting one result.
 
-## Импорты и расширение
+## Hyperparameter tuning with Optuna
 
-```python
-from recsys.config import compose
-from recsys.data import PreparedDataset
-from recsys.evaluation import evaluate_model
-from recsys.models import build_model
-from recsys.training import run_training
+Select a search preset with `-cn <dataset>.tuning.<search>`. Each search preset starts from a fixed training preset and defines the parameters a trial may vary. `tune` fits each trial on the training split and maximizes its best validation score for `evaluation.selection_metric`. Reserve the test split for evaluating configurations selected on validation.
 
-config = compose(["runtime=cpu_smoke"], config_name="ml1m_sasrec")
-summary = run_training(config)
-```
+Shared sampler and study defaults live in [`configs/optuna/`](configs/optuna/). Search spaces live in each dataset’s `tuning/` folder. Use `tuning.*` for CLI overrides such as `tuning.trials=30`.
 
-Ядро принимает обычные словари, а каждый CLI-скрипт явно вызывает свою операцию. Hydra разрешает YAML и CLI-переопределения. `History` объединяет события, последовательности и разреженную матрицу. Инструкции по добавлению модели, лосса, метрики и источника данных описаны в руководстве. [EXTENDING.md](docs/EXTENDING.md)
-
-## Проверки
+The MovieLens 1M SASRec grid tries four combinations of learning rate and dropout.
 
 ```bash
-pytest -q
+python -m recsys.tune -cn ml1m.tuning.sasrec_grid
+```
+
+Use the TPE preset for a search over broader ranges.
+
+```bash
+python -m recsys.tune -cn ml1m.tuning.sasrec runtime=cpu \
+  training.epochs=30 tuning.trials=20 \
+  tuning.space.model.dropout.high=0.4 \
+  tuning.study_name=ml1m_sasrec_tpe output.dir=outputs/ml1m_sasrec_search
+```
+
+- **TPE** (Tree-structured Parzen Estimator) uses previous validation scores to propose new hyperparameters after its startup trials. The bundled TPE settings enable median pruning and allow 20 trials per invocation.
+- **Search spaces** live under `tuning.space.model` and `tuning.space.training` in the search presets. A `categorical` field takes `choices`. An `int` or `float` field takes `low` and `high`, with `log: true` for logarithmic sampling. See the [MovieLens 1M SASRec search](configs/datasets/ml1m/tuning/sasrec.yaml) for an example.
+- **Grid search** uses explicit categorical choices for every parameter. Random and MostPopular have no hyperparameter search presets. See the [SASRec grid](configs/datasets/ml1m/tuning/sasrec_grid.yaml).
+
+Override the search space when tuning on larger GPUs. To hold batch size fixed during the study, give it a single choice such as `[1024]`.
+
+```bash
+python -m recsys.tune -cn ml1m.tuning.sasrec runtime=cuda \
+  'tuning.space.training.batch_size.choices=[512,1024,2048]'
+```
+
+Studies use `sqlite:///outputs/optuna.db` by default. Repeating the same study with the same settings and storage continues it, with `tuning.trials` controlling the budget of the new invocation. Use a distinct `tuning.study_name` and output path for another experiment, or `tuning.storage=null` for a fresh in-memory study.
+
+Each study writes trial directories, `trials.csv`, `study.json`, and a resolved `best.yaml` under `<output.dir>/tuning/<study_name>`. The CSV lists each trial’s parameters, score, status, and any recorded failure. Copy the winning `model` and `training` values you want from `best.yaml` into your fixed training preset. The CLI also prints the absolute path to `best.yaml`, which can be used directly to train a fresh checkpoint.
+
+```bash
+python -m recsys.train \
+  --config-path "$PWD/outputs/ml1m_sasrec_search/tuning/ml1m_sasrec_tpe" \
+  --config-name best seed=43 run_name=sasrec_ml1m_tuned_seed43 \
+  output.dir=outputs/sasrec_ml1m_tuned_seed43
+
+python -m recsys.evaluate \
+  checkpoint=outputs/sasrec_ml1m_tuned_seed43/best.pt split=test
+```
+
+In the resolved `best.yaml`, override fields directly. For example, use `runtime.device=mps` to change the device.
+
+## Interpreting results
+
+Compare models on the same split, effective history, ranking protocol, and candidate catalog. The quickstart and batch-capped runs check that the pipeline works. For quality comparisons, run full epochs and report results across independent seeds. Full CE can require substantial memory as batch size, sequence length, and catalog size grow. With finite history length `L`, the current SASRec training batches use at most `L-1` input positions, while evaluation can use all `L`. On histories of length `L`, evaluation can therefore use a positional embedding that received no training updates.
+
+## Development and license
+
+Run the same CPU checks used in CI.
+
+```bash
+python -m pytest -q
 ruff check src tests
 ruff format --check src tests
 ```
 
-Тесты используют синтетические источники, не скачивают данные и не требуют GPU. Проверяются ручные значения метрик, повторные цели, время/mapping, CE/SCE, sparse constraints, все модели, checkpoint/resume, finetune, CLI, Optuna и отчёты.
+The tests run on CPU with synthetic fixtures. [GitHub Actions](.github/workflows/tests.yml) also builds and checks the installed wheel outside the checkout.
 
-- [Техническое задание](docs/TECHNICAL_SPEC.md)
-- [План и текущий статус](docs/IMPLEMENTATION_PLAN.md)
-- [Выполненные проверки и ограничения](docs/VALIDATION.md)
-This repository contains baselines and pipelines, which may form as basis for research projects in recommendation systems.
+The CLI uses [Hydra configs](configs/) and delegates to the Python APIs in [`src/recsys`](src/recsys/). See the [project license](LICENSE) and [third-party attribution](THIRD_PARTY.md).

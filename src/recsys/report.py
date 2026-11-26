@@ -1,12 +1,11 @@
 """Aggregate saved evaluation results with python -m recsys.report."""
 
-import hydra
 from omegaconf import DictConfig, OmegaConf
 
-from recsys.config import config_directory
+from recsys.config import hydra_cli
 
 
-@hydra.main(config_path=config_directory(), config_name="config", version_base="1.3")
+@hydra_cli
 def main(config: DictConfig) -> None:
     from recsys.reporting import report
 

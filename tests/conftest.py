@@ -27,7 +27,7 @@ def prepared(tmp_path):
         writer.writerow([106, "i00", "cold_user", 5])
         writer.writerow([1, "i00", "u0", 1])
         writer.writerow([20, "i02", "u0", 5])  # retain this exact duplicate
-    cfg = compose(["dataset=csv", "runtime=cpu_smoke"])
+    cfg = compose(config_name="csv.dataset")
     cfg["dataset"].update(name="fixture", input_path=str(raw), path=str(tmp_path / "prepared"))
     cfg["preparation"]["boundaries"] = [80, 100]
     prepare(cfg["dataset"], cfg["preparation"])

@@ -1,8 +1,0 @@
-name: amazon_beauty
-source: amazon
-path: data/global_temporal_split/${dataset.name}
-input_path: data/raw/${dataset.name}/Beauty_and_Personal_Care.jsonl.gz
-url: null
-time_origin: unix_utc
-category: Beauty_and_Personal_Care
-timestamp_scale: 1

@@ -1,8 +1,6 @@
 # @package _global_
 defaults:
 - _self_
-- dataset: ml1m
-- model: sasrec
 - evaluation: default
 - override hydra/job_logging: disabled
 seed: 42
@@ -12,7 +10,7 @@ max_seq_length: 50
 min_history: 2
 checkpoint: null
 split: test
-run_name: ${model.name}_${dataset.name}_seed${seed}
+run_name: ${oc.select:model.name,run}_${dataset.name}_seed${seed}
 output:
   dir: outputs/${run_name}
   path: results/${dataset.name}/${run_name}_${split}.json
@@ -41,13 +39,11 @@ training:
   gradient_clip: 5.0
   amp: false
   validate: null
-  patience: 10
+  patience: 50
   max_batches: null
   scheduler:
     step_size: 1000000
     gamma: 1.0
-tuning:
-  space: {}
 reporting:
   input_dir: results
   output_dir: reports

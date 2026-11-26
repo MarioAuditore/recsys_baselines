@@ -1,0 +1,8 @@
+# @package tuning
+defaults:
+- tpe
+- _self_
+sampler: grid
+trials: 4
+pruning: false
+warmup_epochs: 0

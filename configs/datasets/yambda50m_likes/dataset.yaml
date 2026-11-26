@@ -1,0 +1,15 @@
+# @package _global_
+defaults:
+- /base
+- _self_
+dataset:
+  name: yambda50m_likes
+  source: yambda
+  path: data/global_temporal_split/${dataset.name}
+  input_path: data/raw/${dataset.name}/likes.parquet
+  url: null
+  time_origin: source_relative
+  size: 50m
+  event: likes
+  revision: main
+  timestamp_scale: 1000

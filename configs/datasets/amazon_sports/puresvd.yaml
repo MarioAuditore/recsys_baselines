@@ -1,0 +1,13 @@
+# @package _global_
+defaults:
+- dataset
+- _self_
+- /execution
+max_seq_length: 50
+model:
+  name: puresvd
+  loss: null
+  rank: 64
+  tolerance: 0.0
+training:
+  batch_size: 1024

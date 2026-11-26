@@ -1,8 +1,0 @@
-name: amazon_clothing
-source: amazon
-path: data/global_temporal_split/${dataset.name}
-input_path: data/raw/${dataset.name}/Clothing_Shoes_and_Jewelry.jsonl.gz
-url: null
-time_origin: unix_utc
-category: Clothing_Shoes_and_Jewelry
-timestamp_scale: 1

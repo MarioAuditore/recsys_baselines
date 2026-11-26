@@ -134,7 +134,10 @@ def run_training(config, mode="train", epoch_callback=None):
                 "Resume writes to the original run directory; use finetune for a new run"
             )
     elif (last_path.exists() or best_path.exists()) and not config["output"]["overwrite"]:
-        raise FileExistsError(f"{output} contains checkpoints; choose output.dir or overwrite=true")
+        raise FileExistsError(
+            f"{output} contains checkpoints. Choose a new run_name or output.dir. "
+            "To replace this run, set output.overwrite=true."
+        )
 
     optimizer = scheduler = scaler = None
     if not analytic:
