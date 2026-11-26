@@ -34,5 +34,4 @@ ignore = ["E501"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "configs" = "recsys/configs"
-"third_party" = "recsys/third_party"
-"THIRD_PARTY.md" = "recsys/THIRD_PARTY.md"
+
